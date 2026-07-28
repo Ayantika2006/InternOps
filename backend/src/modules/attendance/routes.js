@@ -211,7 +211,46 @@ async function routes(fastify) {
   fastify.get(
     '/:userId',
     {
-      schema: { tags: ['Attendance'], description: 'Get attendance records' },
+      schema: {
+  tags: ['Attendance'],
+  description: 'Get attendance records',
+
+  params: {
+    type: 'object',
+    properties: {
+      userId: {
+        type: 'string',
+        
+      },
+    },
+    required: ['userId'],
+  },
+
+  querystring: {
+    type: 'object',
+    properties: {
+      from: {
+        type: 'string',
+        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+      },
+      to: {
+        type: 'string',
+        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+      },
+      page: {
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+      },
+      limit: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 100,
+        default: 30,
+      },
+    },
+  },
+},
       preHandler: [auth, ownership('userId')],
     },
     async (req) => {
