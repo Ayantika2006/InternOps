@@ -116,7 +116,9 @@ app.register(require('@fastify/cors'), {
       return cb(null, true);
     }
 
-    return cb(new Error('Not allowed by CORS'), false);
+    const corsError = new Error('Not allowed by CORS');
+    corsError.statusCode = 403;
+    return cb(corsError, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
