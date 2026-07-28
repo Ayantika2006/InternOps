@@ -60,7 +60,6 @@ app.get(
   }
 );
 
-
 app.get(
   '/health/detailed',
   {
@@ -86,12 +85,10 @@ app.get(
 
     const healthy = checks.db && checks.redis;
 
-    reply
-      .status(healthy ? 200 : 503)
-      .send({
-        status: healthy ? 'healthy' : 'degraded',
-        checks,
-      });
+    reply.status(healthy ? 200 : 503).send({
+      status: healthy ? 'healthy' : 'degraded',
+      checks,
+    });
   }
 );
 app.register(require('@fastify/cors'), {
