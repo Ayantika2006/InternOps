@@ -208,6 +208,7 @@ async function routes(fastify) {
   );
 
   // Get attendance for a user (with ownership check)
+<<<<<<< HEAD
   fastify.get(
     '/:userId',
     {
@@ -255,9 +256,74 @@ async function routes(fastify) {
     async (req) => {
       const { from, to, page, limit } = req.query;
       return repo.getAttendance(req.params.userId, { from, to, page, limit });
-    }
-  );
+=======
+fastify.get(
+  '/:userId',
+  {
+    schema: {
+      tags: ['Attendance'],
+      description: 'Get attendance records',
 
+      params: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          userId: {
+            type: 'string',
+            format: 'uuid',
+          },
+        },
+        required: ['userId'],
+      },
+
+      querystring: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          from: {
+            type: 'string',
+            format: 'date',
+          },
+          to: {
+            type: 'string',
+            format: 'date',
+          },
+          page: {
+            type: 'integer',
+            minimum: 1,
+            default: 1,
+          },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 100,
+            default: 30,
+          },
+        },
+      },
+    },
+
+    preHandler: [auth, ownership('userId')],
+  },
+
+  async (req, reply) => {
+    const { from, to, page, limit } = req.query;
+
+    if (from && to && new Date(from) > new Date(to)) {
+      return reply.status(400).send({
+        error: "'from' date must be before or equal to 'to' date",
+      });
+>>>>>>> 3cc1231 (fix: strengthen attendance query validation)
+    }
+
+    return repo.getAttendance(req.params.userId, {
+      from,
+      to,
+      page,
+      limit,
+    });
+  }
+);
   // Monthly stats (requires ownership)
   fastify.get(
     '/:userId/stats',
