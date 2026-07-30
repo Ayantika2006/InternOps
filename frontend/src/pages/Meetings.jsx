@@ -24,6 +24,14 @@ import {
 import CustomDatePicker from '../components/CustomDatePicker';
 import CustomTimePicker from '../components/CustomTimePicker';
 
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return ['https:', 'http:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
 export default function Meetings({
   isProjectView = false,
   deptId,
@@ -333,14 +341,14 @@ export default function Meetings({
               />
             )}
 
-            {team.length > 0 && !teamIsError && (
+            {effectiveTeam.length > 0 && !teamIsError && (
               <div className="pt-1">
                 <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
                   Attendees ({attendees.length} selected)
                 </label>
 
                 <div className="flex flex-wrap gap-2 max-h-44 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  {team.map((m) => (
+                  {effectiveTeam.map((m) => (
                     <button
                       type="button"
                       key={m.id}
@@ -475,15 +483,21 @@ export default function Meetings({
 
                 {m.meetingUrl && (
                   <div className="mt-4">
-                    <a
-                      href={m.meetingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
-                    >
-                      <ExternalLink className="w-4 h-4"></ExternalLink>
-                      Join Meeting
-                    </a>
+                    {isSafeUrl(m.meetingUrl) ? (
+                      <a
+                        href={m.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Join Meeting
+                      </a>
+                    ) : (
+                      <span className="text-xs text-rose-500 font-medium">
+                        Invalid or unsafe meeting link
+                      </span>
+                    )}
                   </div>
                 )}
 
