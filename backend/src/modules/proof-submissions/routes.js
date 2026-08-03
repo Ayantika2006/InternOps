@@ -16,22 +16,13 @@ const { pipeline } = require('stream/promises');
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif'];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif'];
 const uploadRepo = require('../uploads/repository');
+const { generateTaskSummary } = require('./ai.service');
 
 const MAGIC_BYTES = {
   'image/jpeg': [[0xff, 0xd8, 0xff]],
   'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
   'image/gif': [[0x47, 0x49, 0x46, 0x38]],
 };
-
-const projectRoot = path.resolve(__dirname, '..', '..', '..');
-const uploadsRoot = path.resolve(projectRoot, config.uploadDir);
-
-function isValidUploadPath(dbSavedPath) {
-  if (!dbSavedPath) return true;
-  const absolutePath = path.resolve(projectRoot, dbSavedPath);
-  const relative = path.relative(uploadsRoot, absolutePath);
-  return !relative.startsWith('..') && !path.isAbsolute(relative);
-}
 
 function detectMimeFromBuffer(buf) {
   if (!buf || buf.length < 4) return null;
@@ -235,19 +226,41 @@ async function routes(fastify) {
   );
 
   fastify.get(
-    '/task/:taskId',
-    {
-      preHandler: [auth, rbac('CAPTAIN', 'TL', 'SENIOR_TL', 'ADMIN')],
-      schema: {
-        tags: ['Proofs'],
-        description: 'Get proofs by task',
-        params: toSchema(z.object({ taskId: z.string() })),
-      },
+  '/task/:taskId',
+  {
+    preHandler: [auth, rbac('CAPTAIN', 'TL', 'SENIOR_TL', 'ADMIN')],
+    schema: {
+      tags: ['Proofs'],
+      description: 'Get proofs by task',
+      params: toSchema(z.object({ taskId: z.string() })),
     },
-    async (req) => {
-      return repo.getProofsByTask(req.params.taskId);
-    }
-  );
+  },
+  async (req) => {
+    const proofs = await repo.getProofsByTask(req.params.taskId);
+
+    const results = await Promise.all(
+      proofs.map(async (proof) => {
+        try {
+          const ai = await generateTaskSummary(proof);
+
+          return {
+            ...proof,
+            aiSummary: ai.summary,
+            consistencyFlag: ai.consistencyFlag,
+          };
+        } catch (err) {
+          return {
+            ...proof,
+            aiSummary: null,
+            consistencyFlag: 'needs_review',
+          };
+        }
+      })
+    );
+
+    return results;
+  }
+);
 
   fastify.get(
     '/my',
@@ -274,22 +287,6 @@ async function routes(fastify) {
       const proof = await repo.getProof(req.params.id);
       if (!proof) {
         return reply.status(404).send({ error: 'Proof not found' });
-      }
-
-      if (proof.image_path && !isValidUploadPath(proof.image_path)) {
-        return reply
-          .status(400)
-          .send({ error: 'Directory traversal attempt detected' });
-      }
-
-      if (proof.images && proof.images.length > 0) {
-        for (const img of proof.images) {
-          if (!isValidUploadPath(img)) {
-            return reply
-              .status(400)
-              .send({ error: 'Directory traversal attempt detected' });
-          }
-        }
       }
 
       await repo.deleteProof(req.params.id);
@@ -332,12 +329,6 @@ async function routes(fastify) {
       const image = await repo.getProofImage(req.params.imageId);
       if (!image) {
         return reply.status(404).send({ error: 'Image not found' });
-      }
-
-      if (image.image_path && !isValidUploadPath(image.image_path)) {
-        return reply
-          .status(400)
-          .send({ error: 'Directory traversal attempt detected' });
       }
 
       await repo.deleteProofImage(req.params.imageId);
