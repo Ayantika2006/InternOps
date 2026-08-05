@@ -20,17 +20,17 @@ function getSafeRedisError(err) {
 function buildRedisClientOptions() {
   const redisConfig = config.redis;
 
-  if (!redisConfig?.enabled || !redisConfig.host || !redisConfig.password) {
+  if (!redisConfig?.enabled || !redisConfig.host) {
     return null;
   }
 
   return {
     username: redisConfig.username || 'default',
-    password: redisConfig.password,
+    password: redisConfig.password || undefined,
     socket: {
       host: redisConfig.host,
       port: redisConfig.port || 6379,
-      tls: redisConfig.tls !== false,
+      tls: redisConfig.tls === true,
       connectTimeout: 1000,
       reconnectStrategy: false,
     },

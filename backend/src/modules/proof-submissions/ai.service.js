@@ -24,9 +24,7 @@ function buildSubmissionSnapshot(submission) {
       share: Boolean(submission.did_share),
     },
 
-    imageCount: Array.isArray(submission.images)
-      ? submission.images.length
-      : 0,
+    imageCount: Array.isArray(submission.images) ? submission.images.length : 0,
 
     status: safeSandbox(submission.status),
   };
@@ -40,8 +38,8 @@ async function generateTaskSummary(submission) {
   });
 
   const snapshot = buildSubmissionSnapshot(submission);
-  
-const prompt = `
+
+  const prompt = `
 You are an AI assistant reviewing InternOps proof submissions.
 
 IMPORTANT:
@@ -71,64 +69,62 @@ Rules:
 - Do not return markdown.
 - Do not explain your reasoning.
 `.trim();
-const start = Date.now();
-let result;
+  const start = Date.now();
+  let result;
 
-try {
-  result = await model.generateContent(prompt);
+  try {
+    result = await model.generateContent(prompt);
 
-  const duration = Date.now() - start;
+    const duration = Date.now() - start;
 
-  if (typeof metrics.recordLatency === 'function') {
-    metrics.recordLatency('proof_submission_ai', duration);
+    if (typeof metrics.recordLatency === 'function') {
+      metrics.recordLatency('proof_submission_ai', duration);
+    }
+
+    if (
+      result?.response?.usageMetadata?.totalTokenCount &&
+      typeof metrics.recordTokenUsage === 'function'
+    ) {
+      metrics.recordTokenUsage(result.response.usageMetadata.totalTokenCount);
+    }
+  } catch (err) {
+    if (typeof metrics.recordError === 'function') {
+      metrics.recordError('proof_submission_ai');
+    }
+
+    throw err;
+  }
+  const raw = result.response.text();
+
+  const text = raw
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+
+  let parsed;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('AI response was not valid JSON');
+  }
+
+  if (typeof parsed.summary !== 'string' || !parsed.summary.trim()) {
+    throw new Error('AI response missing summary');
   }
 
   if (
-    result?.response?.usageMetadata?.totalTokenCount &&
-    typeof metrics.recordTokenUsage === 'function'
+    parsed.consistencyFlag !== 'ok' &&
+    parsed.consistencyFlag !== 'needs_review'
   ) {
-    metrics.recordTokenUsage(
-      result.response.usageMetadata.totalTokenCount
-    );
-  }
-} catch (err) {
-  if (typeof metrics.recordError === 'function') {
-    metrics.recordError('proof_submission_ai');
+    throw new Error('Invalid consistency flag');
   }
 
-  throw err;
-}
-const raw = result.response.text();
-
-const text = raw
-  .replace(/```json/g, '')
-  .replace(/```/g, '')
-  .trim();
-
-let parsed;
-
-try {
-  parsed = JSON.parse(text);
-} catch {
-  throw new Error('AI response was not valid JSON');
-}
-
-if (typeof parsed.summary !== 'string' || !parsed.summary.trim()) {
-  throw new Error('AI response missing summary');
-}
-
-if (
-  parsed.consistencyFlag !== 'ok' &&
-  parsed.consistencyFlag !== 'needs_review'
-) {
-  throw new Error('Invalid consistency flag');
-}
-
-return {
-  source: 'ai',
-  summary: parsed.summary.trim(),
-  consistencyFlag: parsed.consistencyFlag,
-};
+  return {
+    source: 'ai',
+    summary: parsed.summary.trim(),
+    consistencyFlag: parsed.consistencyFlag,
+  };
 }
 module.exports = {
   generateTaskSummary,
