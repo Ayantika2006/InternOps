@@ -118,6 +118,7 @@ async function routes(fastify) {
   fastify.post(
     '/bulk',
     {
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
       schema: { tags: ['Attendance'], description: 'Bulk mark attendance' },
       preHandler: [auth, rbac('CAPTAIN', 'TL', 'SENIOR_TL', 'ADMIN'), sanitize],
     },

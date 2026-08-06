@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from ..core.auth import User, get_current_user
 from ..core.rate_limit import enforce_rate_limit
 from ..core.rbac import require_roles
+from ..core.cache import cache_key, get_or_set
 from ..core.usage import (
     DAILY_AI_LIMIT,
     get_daily_usage_report,
@@ -39,7 +40,7 @@ from ..models.ai import (
 )
 from ..providers.base import AIProviderError, ProviderAPIError, ProviderRateLimitError
 from ..providers.orchestrator import ai_orchestrator, get_circuit_breaker
-from ..providers.registry import get_configured_providers_health, get_provider
+from ..providers.registry import get_configured_providers_health
 from ..core.security import sanitize_prompt
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -68,14 +69,35 @@ def _messages_to_prompt(messages: List[dict]) -> str:
     )
 
 
+
+
 async def call_provider(user_id: str, messages: List[dict]) -> ProviderResult:
     prompt = _messages_to_prompt(messages)
-    content, provider_name = await ai_orchestrator.generate_text_with_fallback(prompt)
+
+    temperature = 0.7
+
+    key = cache_key(
+        provider="orchestrator",
+        model="fallback",
+        prompt=prompt,
+        temperature=temperature,
+    )
+
+    async def compute():
+        return await ai_orchestrator.generate_text_with_fallback(prompt)
+
+    (content, provider_name), cached = await get_or_set(
+        key=key,
+        compute=compute,
+    )
+
     return ProviderResult(
         provider=provider_name,
-        cached=False,  # TODO(caching): no caching layer wired up yet
+        cached=cached,
         content=content,
     )
+
+   
 
 
 async def get_provider_health() -> list:
