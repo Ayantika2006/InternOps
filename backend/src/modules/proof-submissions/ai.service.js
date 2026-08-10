@@ -3,6 +3,7 @@ const config = require('../../config');
 const metrics = require('../../utils/metrics');
 
 const genAI = new GoogleGenerativeAI(config.ai.geminiKey);
+
 function safeSandbox(value, maxLen = 200) {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -14,21 +15,20 @@ function safeSandbox(value, maxLen = 200) {
     .trim()
     .slice(0, maxLen);
 }
+
 function buildSubmissionSnapshot(submission) {
   return {
     internName: safeSandbox(submission.intern_name),
-
     claimedActions: {
       comment: Boolean(submission.did_comment),
       repost: Boolean(submission.did_repost),
       share: Boolean(submission.did_share),
     },
-
     imageCount: Array.isArray(submission.images) ? submission.images.length : 0,
-
     status: safeSandbox(submission.status),
   };
 }
+
 async function generateTaskSummary(submission) {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
@@ -56,11 +56,12 @@ Review the submission.
 Return ONLY valid JSON.
 
 {
-  "summary": "<short summary>",
+  "summary": "",
   "consistencyFlag": "ok"
 }
 
 Rules:
+
 - summary must be one sentence.
 - Mention the claimed actions.
 - Mention the number of uploaded images.
@@ -69,6 +70,7 @@ Rules:
 - Do not return markdown.
 - Do not explain your reasoning.
 `.trim();
+
   const start = Date.now();
   let result;
 
@@ -94,6 +96,7 @@ Rules:
 
     throw err;
   }
+
   const raw = result.response.text();
 
   const text = raw
@@ -126,6 +129,7 @@ Rules:
     consistencyFlag: parsed.consistencyFlag,
   };
 }
+
 module.exports = {
   generateTaskSummary,
 };

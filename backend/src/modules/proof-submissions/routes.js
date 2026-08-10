@@ -8,6 +8,7 @@ const rbac = require('../../middleware/rbac');
 const repo = require('./repository');
 const service = require('./service');
 const { generateTaskSummary } = require('./ai.service');
+const pLimit = require('p-limit');
 async function routes(fastify) {
   // Submit proof (intern only)
   fastify.post(
@@ -101,24 +102,28 @@ async function routes(fastify) {
     async (req) => {
       const proofs = await repo.getProofsByTask(req.params.taskId);
 
-      const results = await Promise.all(
-        proofs.map(async (proof) => {
-          try {
-            const ai = await generateTaskSummary(proof);
+      const limit = pLimit(3);
 
-            return {
-              ...proof,
-              aiSummary: ai.summary,
-              consistencyFlag: ai.consistencyFlag,
-            };
-          } catch (err) {
-            return {
-              ...proof,
-              aiSummary: null,
-              consistencyFlag: 'needs_review',
-            };
-          }
-        })
+      const results = await Promise.all(
+        proofs.map((proof) =>
+          limit(async () => {
+            try {
+              const ai = await generateTaskSummary(proof);
+
+              return {
+                ...proof,
+                aiSummary: ai.summary,
+                consistencyFlag: ai.consistencyFlag,
+              };
+            } catch (err) {
+              return {
+                ...proof,
+                aiSummary: null,
+                consistencyFlag: 'needs_review',
+              };
+            }
+          })
+        )
       );
 
       return results;

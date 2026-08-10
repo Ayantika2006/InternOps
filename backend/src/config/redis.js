@@ -29,12 +29,11 @@ function buildRedisClientOptions() {
     socket: {
       host: redisConfig.host,
       port: redisConfig.port || 6379,
-      tls: redisConfig.tls === true,
+      tls: redisConfig.tls !== false && process.env.REDIS_TLS === 'true',
       connectTimeout: 1000,
       reconnectStrategy: false,
     },
   };
-
   if (redisConfig.password) {
     options.password = redisConfig.password;
   }
