@@ -29,7 +29,7 @@ async def generate_ai_content(
         )
 
     try:
-        content, provider_name = await ai_orchestrator.generate_text_with_fallback(prompt)
+        content, provider_name = await ai_orchestrator.generate_chat_with_fallback(prompt)
         return {
             "status": "success",
             "provider": provider_name,
@@ -44,7 +44,7 @@ async def generate_ai_content(
     except ProviderAPIError as error:
         if error.status_code == 413:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="AI provider response too large",
             )
         raise HTTPException(

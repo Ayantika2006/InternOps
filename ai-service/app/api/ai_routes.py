@@ -11,7 +11,7 @@ Split to match ai-service/app's layout (api/ + core/ + models/ + providers/):
   - app/providers/registry.py     -> provider selection (get_provider), added here
 
 `call_provider` below flattens the message list into a single prompt
-(see `_messages_to_prompt`) since BaseAIProvider.generate_text() doesn't
+(see `_messages_to_prompt`) since BaseAIProvider.generate_chat() doesn't
 support multi-turn history yet, then calls the configured adapter for real.
 """
 
@@ -43,6 +43,8 @@ from ..providers.orchestrator import ai_orchestrator, get_circuit_breaker
 from ..providers.registry import get_configured_providers_health
 from ..core.security import sanitize_prompt
 
+import json
+
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 
@@ -54,37 +56,24 @@ MAX_TOTAL_CHARS = 32000
 BODY_LIMIT_BYTES = 2 * 1024 * 1024
 
 
-def _messages_to_prompt(messages: List[dict]) -> str:
-    """Flatten a chat-style message list into a single prompt string.
-
-    TODO(providers): BaseAIProvider.generate_text() takes a single prompt,
-    not a multi-turn message list — the adapters don't have native
-    chat/history support yet. This is a simple, intentionally-lossy
-    workaround (roles become text labels, no real conversation structure)
-    until the provider interface grows multi-turn support.
-    """
-    role_labels = {"user": "User", "assistant": "Assistant", "system": "System"}
-    return "\n\n".join(
-        f"{role_labels.get(m['role'], m['role'])}: {m['content']}" for m in messages
-    )
-
 
 
 
 async def call_provider(user_id: str, messages: List[dict]) -> ProviderResult:
-    prompt = _messages_to_prompt(messages)
-
     temperature = 0.7
+
+    # Serialize messages for the cache key
+    messages_json = json.dumps(messages)
 
     key = cache_key(
         provider="orchestrator",
         model="fallback",
-        prompt=prompt,
+        prompt=messages_json,
         temperature=temperature,
     )
 
     async def compute():
-        return await ai_orchestrator.generate_text_with_fallback(prompt)
+        return await ai_orchestrator.generate_chat_with_fallback(messages)
 
     (content, provider_name), cached = await get_or_set(
         key=key,
@@ -159,7 +148,7 @@ async def chat(
 
     if len(final_messages) > MAX_MESSAGES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Too many messages",
         )
 
@@ -168,14 +157,14 @@ async def chat(
         content = msg["content"] or ""
         if len(content) > MAX_MESSAGE_CHARS:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="Message exceeds maximum length",
             )
         total_chars += len(content)
 
     if total_chars > MAX_TOTAL_CHARS:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Prompt too long",
         )
 
@@ -215,7 +204,7 @@ async def chat(
     except ProviderAPIError as error:
         if error.status_code == 413:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="AI provider response too large",
             )
         raise HTTPException(

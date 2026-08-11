@@ -95,7 +95,7 @@ def get_configured_providers_health() -> list:
     Reports whether each known provider has an API key configured. This
     does NOT make a live API call to the vendor — a real ping would cost
     quota/latency on every hit to /ai/health. Swap this out for an actual
-    `generate_text("ping")` call per provider if that tradeoff is wrong
+    `generate_chat("ping")` call per provider if that tradeoff is wrong
     for this service.
     """
     report = []
