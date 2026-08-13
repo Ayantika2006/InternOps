@@ -108,12 +108,22 @@ def test_chat_happy_path_with_mocked_provider(client, monkeypatch):
 
 
 def test_health_endpoint(client, monkeypatch):
-    for key in ["GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "HUGGINGFACE_TOKEN"]:
+    for key in [
+        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
+        "GROQ_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "HUGGINGFACE_TOKEN",
+    ]:
         monkeypatch.delenv(key, raising=False)
+
     r = client.get("/ai/health")
     assert r.status_code == 200
+
     body = r.json()
-    names = {p["name"] for p in body["providers"]}
+    names = [p["name"] for p in body["providers"]]
+
     assert {"gemini", "openai"}.issubset(names)
     assert all(p["status"] == "unhealthy" for p in body["providers"])
 
