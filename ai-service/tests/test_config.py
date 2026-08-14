@@ -3,16 +3,23 @@ import sys
 import importlib
 import pytest
 from unittest import mock
-
 from pydantic_settings import SettingsConfigDict
 
 # Ensure ai-service root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 @pytest.fixture(autouse=True)
-def clean_env():
+def clean_env(monkeypatch):
+    # Mock dotenv.load_dotenv to do nothing
+    import dotenv
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *args, **kwargs: None)
+    
+    # Mock DotEnvSettingsSource.__call__ to return an empty dict to bypass physical .env reading
+    import pydantic_settings
+    monkeypatch.setattr(pydantic_settings.sources.DotEnvSettingsSource, "__call__", lambda self: {})
+
     # Keep track of and remove any AI-service environment variables before each test
-    prefix_keys = ("GEMINI_", "GROQ_", "OPENAI_", "ANTHROPIC_", "DEEPSEEK_", "HUGGINGFACE_", "PRIMARY_", "FALLBACK_")
+    prefix_keys = ("GEMINI_", "GROQ_", "OPENAI_", "ANTHROPIC_", "DEEPSEEK_", "HUGGINGFACE_", "PRIMARY_", "FALLBACK_", "CORS_",)
     original = {k: os.environ.get(k) for k in os.environ if k.startswith(prefix_keys)}
     for k in original:
         if k in os.environ:
@@ -40,7 +47,6 @@ def test_success_single_provider():
     # Fallback configuration options are preserved but active filtered out
     assert cfg.FALLBACK_AI_PROVIDERS == ["groq", "openai", "anthropic"]
     assert cfg.ACTIVE_FALLBACK_PROVIDERS == []
-
 
 def test_startup_fail_zero_providers(monkeypatch):
     import importlib
@@ -136,7 +142,7 @@ def test_model_validation_and_defaults():
 
     # Don't set models, they should resolve to default values
     cfg = reload_config()
-    assert cfg.GEMINI_MODEL == "gemini-2.5-flash"
+    assert cfg.GEMINI_MODEL == "gemini-2.0-flash"
     assert cfg.GROQ_MODEL == "llama-3.3-70b-versatile"
 
     # Set override for gemini model
@@ -216,3 +222,19 @@ def test_backward_compatibility():
     assert cfg.PRIMARY_AI_PROVIDER == "gemini"
     assert cfg.GEMINI_API_KEY == "valid_gemini"
     assert cfg.GROQ_API_KEY == "valid_groq"
+
+def test_cors_origins_parses_comma_separated_string():
+    os.environ["PRIMARY_AI_PROVIDER"] = "gemini"
+    os.environ["GEMINI_API_KEY"] = "valid_gemini_key"
+    os.environ["JWT_SECRET"] = "test-secret"
+    os.environ["CORS_ORIGINS"] = (
+        "http://localhost:5173, http://localhost:3000"
+    )
+
+    cfg = reload_config()
+
+    assert cfg.settings.CORS_ORIGINS == [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+    

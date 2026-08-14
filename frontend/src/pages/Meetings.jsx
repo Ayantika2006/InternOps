@@ -412,6 +412,7 @@ export default function Meetings({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {meetings.map((m) => {
+            const meetingLink = m.meetingUrl || m.meeting_url;
             const isDeletingThisMeeting =
               deleteMutation.isPending && deleteMutation.variables === m.id;
 
@@ -481,11 +482,11 @@ export default function Meetings({
                   </p>
                 )}
 
-                {m.meetingUrl && (
+                {meetingLink && (
                   <div className="mt-4">
-                    {isSafeUrl(m.meetingUrl) ? (
+                    {isSafeUrl(meetingLink) ? (
                       <a
-                        href={m.meetingUrl}
+                        href={meetingLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
