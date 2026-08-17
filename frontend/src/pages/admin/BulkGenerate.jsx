@@ -2,12 +2,19 @@ import { useState, useCallback, useEffect } from 'react';
 import Papa from 'papaparse';
 import { PageHeader, Card, Badge, Spinner } from '../../components/ui';
 import CustomSelect from '../../components/CustomSelect';
+import { useTemplates } from '../../hooks/useCertificates';
 import {
+<<<<<<< HEAD
   useBulkGenerate,
   useTemplates,
   useBulkJobStatus,
   useSeedTemplates,
 } from '../../hooks/useCertificates';
+=======
+  useBulkAIGenerate,
+  useBulkAIJobStatus,
+} from '../../hooks/useAICertificates';
+>>>>>>> 0db007f (feat(frontend): implement certificate generation flow)
 import {
   Upload,
   Plus,
@@ -32,6 +39,7 @@ const BulkGenerate = () => {
 
   const { data: templatesData, isLoading: templatesLoading } = useTemplates();
   const templates = templatesData?.data || [];
+<<<<<<< HEAD
   const seedTemplatesMutation = useSeedTemplates({
     onSuccess: () => {
       setSeedMessage(
@@ -43,6 +51,9 @@ const BulkGenerate = () => {
     },
   });
   const bulkGenerateMutation = useBulkGenerate();
+=======
+  const bulkGenerateMutation = useBulkAIGenerate();
+>>>>>>> 0db007f (feat(frontend): implement certificate generation flow)
 
   const templateOptions = [
     { value: '', label: 'Select a template...' },
@@ -52,12 +63,17 @@ const BulkGenerate = () => {
     })),
   ];
 
+<<<<<<< HEAD
   const {
     data: jobStatusData,
     isFetching,
     isLoading,
     refetch,
   } = useBulkJobStatus(jobId);
+=======
+  const { data: jobStatusData, isFetching: isPolling } =
+    useBulkAIJobStatus(jobId);
+>>>>>>> 0db007f (feat(frontend): implement certificate generation flow)
   const jobStatus = jobStatusData?.data || null;
   const isPolling = isFetching && !!jobStatus && !isLoading;
   const isGenerating = bulkGenerateMutation.isPending;
