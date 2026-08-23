@@ -22,14 +22,14 @@ async function routes(fastify) {
         tags: ['Hierarchy'],
         description: 'Get full team for a specific manager',
         querystring: {
-  type: 'object',
-  required: ['managerId'],
-  properties: {
-    managerId: { type: 'string', format: 'uuid' },
-    page: { type: 'integer', minimum: 1, default: 1 },
-    limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
-  },
-},
+          type: 'object',
+          required: ['managerId'],
+          properties: {
+            managerId: { type: 'string', format: 'uuid' },
+            page: { type: 'integer', minimum: 1, default: 1 },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+          },
+        },
       },
     },
     async (req, reply) => {
@@ -42,10 +42,10 @@ async function routes(fastify) {
       }
 
       const result = await service.getFullTeam(
-  parsed.data.managerId,
-  parsed.data.page,
-  parsed.data.limit
-);
+        parsed.data.managerId,
+        parsed.data.page,
+        parsed.data.limit
+      );
       return {
         data: result.rows,
         total: result.total,
