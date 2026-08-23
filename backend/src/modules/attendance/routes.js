@@ -217,40 +217,13 @@ async function routes(fastify) {
       }
     }
   );
-
   // Get attendance for a user (with ownership check)
-<<<<<<< HEAD
-=======
-  fastify.get(
-    '/:userId',
-    {
-      schema: { tags: ['Attendance'], description: 'Get attendance records' },
-      preHandler: [auth, ownership('userId')],
-    },
-    async (req, reply) => {
-      try {
-        const { from, to, page, limit } = req.query;
-        return await repo.getAttendance(req.params.userId, {
-          from,
-          to,
-          page,
-          limit,
-        });
-      } catch (err) {
-        req.log.error(err, 'Error in GET /attendance/:userId');
-        return reply.status(500).send({ error: 'Internal server error' });
-      }
-    }
-  );
->>>>>>> upstream/master
-
   fastify.get(
     '/:userId',
     {
       schema: {
         tags: ['Attendance'],
         description: 'Get attendance records',
-
         params: {
           type: 'object',
           additionalProperties: false,
@@ -262,7 +235,6 @@ async function routes(fastify) {
           },
           required: ['userId'],
         },
-
         querystring: {
           type: 'object',
           additionalProperties: false,
@@ -289,28 +261,36 @@ async function routes(fastify) {
           },
         },
       },
-
       preHandler: [auth, ownership('userId')],
     },
-
     async (req, reply) => {
-      const { from, to, page, limit } = req.query;
+      try {
+        const { from, to, page, limit } = req.query;
 
-      if (from && to && new Date(from) > new Date(to)) {
-        return reply.status(400).send({
-          error: "'from' date must be before or equal to 'to' date",
+        if (from && to && new Date(from) > new Date(to)) {
+          return reply.status(400).send({
+            error: "'from' date must be before or equal to 'to' date",
+          });
+        }
+
+        const result = await service.getAttendance(req.params.userId, {
+          from,
+          to,
+          page,
+          limit,
+        });
+
+        return reply.send(result);
+      } catch (err) {
+        req.log.error(err, 'Error in GET /attendance/:userId');
+        return reply.status(500).send({
+          error: 'Internal server error',
         });
       }
-
-      return repo.getAttendance(req.params.userId, {
-        from,
-        to,
-        page,
-        limit,
-      });
     }
   );
-  // Monthly stats (requires ownership)
+
+  // Monthly stats
   fastify.get(
     '/:userId/stats',
     {
@@ -320,24 +300,32 @@ async function routes(fastify) {
       },
       preHandler: [auth, ownership('userId')],
     },
+
     async (req, reply) => {
       try {
         const schema = z.object({
           month: z.coerce.number().int().min(1).max(12),
           year: z.coerce.number().int().min(1970).max(3000),
         });
+
         const parsed = schema.safeParse(req.query);
+
         if (!parsed.success) {
           return reply.status(400).send({
             error: 'month and year are required',
             details: parsed.error.issues,
           });
         }
+
         const { month, year } = parsed.data;
+
         return await repo.getMonthlyStats(req.params.userId, month, year);
       } catch (err) {
         req.log.error(err, 'Error in GET /attendance/:userId/stats');
-        return reply.status(500).send({ error: 'Internal server error' });
+
+        return reply.status(500).send({
+          error: 'Internal server error',
+        });
       }
     }
   );
@@ -346,29 +334,46 @@ async function routes(fastify) {
   fastify.get(
     '/authorized-members',
     {
-      schema: { tags: ['Attendance'], description: 'Get members I can view' },
+      schema: {
+        tags: ['Attendance'],
+        description: 'Get members I can view',
+      },
       preHandler: [auth, rbac('CAPTAIN', 'TL', 'SENIOR_TL', 'ADMIN')],
     },
+
     async (req, reply) => {
       try {
         if (req.user.role === 'ADMIN') {
           const department_id = req.query?.department_id;
+
           if (department_id) {
             const res = await pool.query(
-              'SELECT id, full_name, email, role, department_id FROM users WHERE deleted_at IS NULL AND department_id = $1',
+              `SELECT id, full_name, email, role, department_id
+               FROM users
+               WHERE deleted_at IS NULL
+               AND department_id = $1`,
               [department_id]
             );
+
             return res.rows;
           }
+
           const all = await pool.query(
-            'SELECT id, full_name, email, role, department_id FROM users WHERE deleted_at IS NULL'
+            `SELECT id, full_name, email, role, department_id
+             FROM users
+             WHERE deleted_at IS NULL`
           );
+
           return all.rows;
         }
+
         return await repo.getAuthorizedSubordinates(req.user.id);
       } catch (err) {
         req.log.error(err, 'Error in GET /attendance/authorized-members');
-        return reply.status(500).send({ error: 'Internal server error' });
+
+        return reply.status(500).send({
+          error: 'Internal server error',
+        });
       }
     }
   );
