@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import { toast } from 'sonner';
 
 function getBaseUrl() {
@@ -337,14 +338,29 @@ api.interceptors.response.use(
         const newToken = refreshRes.data?.accessToken;
 
         if (newToken) {
-          const meRes = await api.get('/users/me', {
-            headers: { Authorization: `Bearer ${newToken}` },
-          });
-          // Store refreshed token in memory only.
+          // Decode user data directly from the JWT — avoids a sequential
+          // /users/me round-trip (waterfall request) after every token refresh.
+          // Falls back to the existing user in store if decode fails.
+          let refreshedUser = _authStore?.getState?.()?.user || null;
+          try {
+            const decoded = jwtDecode(newToken);
+            if (decoded?.id) {
+              refreshedUser = {
+                id: decoded.id,
+                role: decoded.role,
+                departmentId: decoded.departmentId,
+                // Preserve non-JWT fields (full_name etc.) from current store
+                ...(_authStore?.getState?.()?.user || {}),
+              };
+            }
+          } catch {
+            // Decode failed — keep current user, session still valid
+          }
+
           if (_authStore) {
             _authStore
               .getState()
-              .setAuth({ accessToken: newToken, user: meRes.data });
+              .setAuth({ accessToken: newToken, user: refreshedUser });
           }
 
           // The server rotated the refresh cookie. The CSRF token may also
