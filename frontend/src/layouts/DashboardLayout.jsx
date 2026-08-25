@@ -83,6 +83,12 @@ const nav = [
     allowedRoles: ADMIN_AND_SENIOR_TL_ROLES,
   },
   {
+    path: '/report-templates',
+    label: 'Report Templates',
+    icon: FileText,
+    allowedRoles: ADMIN_AND_SENIOR_TL_ROLES,
+  },
+  {
     path: '/analytics',
     label: 'Analytics',
     icon: BarChart2,
