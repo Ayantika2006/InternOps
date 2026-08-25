@@ -214,10 +214,10 @@ def test_chat_uses_cache_for_identical_requests(client, monkeypatch):
         return "cached response", "fake-provider"
 
     monkeypatch.setattr(
-        ai_routes_module.ai_orchestrator,
-        "generate_text_with_fallback",
-        fake_generate,
-    )
+    ai_routes_module.ai_orchestrator,
+    "generate_chat_with_fallback",
+    fake_generate,
+)
 
     # Use a fake Redis-backed cache in memory.
     cache = {}

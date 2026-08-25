@@ -25,26 +25,55 @@ async function getDepartmentRatingsSheet({
   from,
   to,
 }) {
+  const isAllDepts = !departmentId || departmentId === 'all';
   const memberScope = isAdmin
-    ? `SELECT id, full_name, email, role, department_id
-       FROM users
-       WHERE department_id = $1 AND deleted_at IS NULL`
-    : `WITH RECURSIVE visible_users AS (
-         SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
-         FROM users
-         WHERE id = $2 AND deleted_at IS NULL
-         UNION ALL
-         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
-                visible_users.depth + 1
+    ? isAllDepts
+      ? `SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
          FROM users u
-         INNER JOIN visible_users ON u.manager_id = visible_users.id
-         WHERE u.deleted_at IS NULL AND visible_users.depth < 100
-       )
-       SELECT id, full_name, email, role, department_id
-       FROM visible_users
-       WHERE department_id = $1`;
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.deleted_at IS NULL`
+      : `SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.department_id = $1 AND u.deleted_at IS NULL`
+    : isAllDepts
+      ? `WITH RECURSIVE visible_users AS (
+           SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
+           FROM users
+           WHERE id = $1 AND deleted_at IS NULL
+           UNION ALL
+           SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
+                  visible_users.depth + 1
+           FROM users u
+           INNER JOIN visible_users ON u.manager_id = visible_users.id
+           WHERE u.deleted_at IS NULL AND visible_users.depth < 100
+         )
+         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM visible_users u
+         LEFT JOIN departments d ON d.id = u.department_id`
+      : `WITH RECURSIVE visible_users AS (
+           SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
+           FROM users
+           WHERE id = $2 AND deleted_at IS NULL
+           UNION ALL
+           SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
+                  visible_users.depth + 1
+           FROM users u
+           INNER JOIN visible_users ON u.manager_id = visible_users.id
+           WHERE u.deleted_at IS NULL AND visible_users.depth < 100
+         )
+         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM visible_users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.department_id = $1`;
 
-  const memberParams = isAdmin ? [departmentId] : [departmentId, requesterId];
+  const memberParams = isAllDepts
+    ? isAdmin
+      ? []
+      : [requesterId]
+    : isAdmin
+      ? [departmentId]
+      : [departmentId, requesterId];
   const membersResult = await pool.query(memberScope, memberParams);
   const members = membersResult.rows;
   const memberIds = members.map((member) => member.id);

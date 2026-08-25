@@ -229,7 +229,7 @@ async function routes(fastify) {
     },
     async (req, reply) => {
       try {
-        const paramsSchema = z.object({ deptId: z.string().uuid() });
+        const paramsSchema = z.object({ deptId: z.string().min(1) });
         const querySchema = z
           .object({
             from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

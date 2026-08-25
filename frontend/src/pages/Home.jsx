@@ -5,6 +5,7 @@ import api from '../lib/axios';
 import useAuthStore from '../store/auth';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { Card, StatCard, ApiErrorState } from '../components/ui';
+import AssessmentSection from '../components/AssessmentSection';
 
 function attendancePct(m) {
   const total = Number(m.attendance_total) || 0;
@@ -359,6 +360,11 @@ function InternHome({ user }) {
           icon="📊"
           gradient="from-indigo-500 to-blue-600"
         />
+      </div>
+
+      {/* AI Assessment Section */}
+      <div className="mb-6">
+        <AssessmentSection userId={user?.id} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

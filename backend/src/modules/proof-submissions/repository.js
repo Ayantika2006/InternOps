@@ -167,6 +167,25 @@ async function getProof(proofId) {
 }
 
 /**
+ * Save the AI verification result for a proof submission.
+ */
+async function saveVerificationResult(proofId, verificationResult) {
+  const res = await pool.query(
+    `UPDATE proof_submissions
+     SET verification_result = $1
+     WHERE id = $2
+     RETURNING *`,
+    [verificationResult, proofId]
+  );
+
+  if (res.rowCount === 0) {
+    throw new Error('Proof not found');
+  }
+
+  return res.rows[0];
+}
+
+/**
  * Soft-delete a proof submission.
  */
 async function deleteProof(proofId) {
@@ -203,6 +222,7 @@ module.exports = {
   getProofsByTask,
   getProofsByIntern,
   getProof,
+  saveVerificationResult,
   deleteProof,
   getProofImage,
   deleteProofImage,

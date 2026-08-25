@@ -110,12 +110,3 @@ class NvidiaProvider(BaseAIProvider):
             return json.loads(b"".join(chunks))
         except json.JSONDecodeError as e:
             raise ProviderAPIError(f"Nvidia returned invalid JSON: {e}", self.provider_name)
-
-
-async def call_nvidia(messages: list[dict]) -> str:
-    """
-    Send messages to Nvidia NIM API using the NvidiaProvider adapter.
-    """
-    from app.core.config import NVIDIA_API_KEY, NVIDIA_MODEL
-    provider = NvidiaProvider(api_key=NVIDIA_API_KEY, model_name=NVIDIA_MODEL)
-    return await provider.generate_chat(messages)

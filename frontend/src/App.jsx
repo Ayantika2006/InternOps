@@ -34,6 +34,7 @@ const Notices = lazy(() => import('./pages/admin/Notices'));
 const Certificates = lazy(() => import('./pages/admin/Certificates'));
 const BulkGenerate = lazy(() => import('./pages/admin/BulkGenerate'));
 const CanvaTemplates = lazy(() => import('./pages/admin/CanvaTemplates'));
+const CanvaCallback = lazy(() => import('./pages/admin/CanvaCallback'));
 const AICertificates = lazy(() => import('./pages/admin/AICertificates'));
 const QuickGenerate = lazy(() => import('./pages/admin/QuickGenerate'));
 const FeatureFlags = lazy(() => import('./pages/admin/FeatureFlags'));
@@ -86,23 +87,26 @@ export default function App() {
 
   useEffect(() => {
     if (!bootRefreshPromise) {
-      bootRefreshPromise = api.post('/auth/refresh', {});
-    }
-
-    bootRefreshPromise
-      .then((res) => {
+      bootRefreshPromise = api.post('/auth/refresh', {}).then(async (res) => {
         setAuth({
           accessToken: res.data.accessToken,
           user: res.data.user,
         });
-        // Fetch feature flags right after a successful auth refresh so they
-        // are available before any page component renders.
-        fetchFlags();
-      })
+
+        // Fetch feature flags only once as part of the shared boot process.
+        await fetchFlags();
+
+        return res;
+      });
+    }
+
+    bootRefreshPromise
       .catch((err) => {
         const status = err.response?.status;
+
         if (status === 400 || status === 401 || status === 403) {
           const currentToken = useAuthStore.getState().accessToken;
+
           if (!currentToken) {
             logout();
             resetFlags();
@@ -385,6 +389,10 @@ export default function App() {
                   <CanvaTemplates />
                 </RoleGuard>
               }
+            />
+            <Route
+              path="canva-templates/callback"
+              element={<CanvaCallback />}
             />
             <Route
               path="ai-certificates"

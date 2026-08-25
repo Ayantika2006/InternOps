@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, Send, X, Sparkles, ChevronDown, RotateCcw } from 'lucide-react';
-import api from '../lib/axios';
+import api, { getAiChatErrorMessage } from '../lib/axios';
 import useAuthStore from '../store/auth';
 
 // ── Local knowledge base for instant offline answers ─────────────────────────
@@ -272,6 +272,19 @@ function Bubble({ msg }) {
         ) : (
           <div className="space-y-0.5">{renderText(msg.content)}</div>
         )}
+        {msg.buttons && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {msg.buttons.map((button, index) => (
+              <button
+                key={index}
+                onClick={button.onClick}
+                className="px-2.5 py-1 text-[11px] font-bold border border-slate-200 dark:border-slate-700 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
+        )}
         <p
           className={`text-[10px] mt-1 ${isUser ? 'text-indigo-100/70' : 'text-slate-400 dark:text-slate-500'}`}
         >
@@ -326,8 +339,8 @@ export default function FloatingChatbot() {
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const addBot = useCallback(
-    (content) => {
-      const msg = { role: 'bot', content, time: now() };
+    (content, buttons = null) => {
+      const msg = { role: 'bot', content, time: now(), buttons };
       setMessages((prev) => [...prev, msg]);
       setHistory((prev) => [...prev, { role: 'assistant', content }]);
       if (!open) setUnread((n) => n + 1);
@@ -390,30 +403,41 @@ What do you need help with?`;
       // 2️⃣ Fall back to AI service via backend
       try {
         const roleLabel = role.replace(/_/g, ' ');
-        const res = await api.post('/ai/chat', {
-          messages: [
-            {
-              role: 'system',
-              content: `You are the InternOps AI Assistant. The current user's role is: ${roleLabel}. Give concise, role-aware answers about InternOps platform features, permissions, and how-to guidance.`,
-            },
-            // last 6 messages for context
-            ...history.slice(-6).map((h) => ({
-              role: h.role === 'bot' ? 'assistant' : h.role,
-              content: h.content,
-            })),
-            { role: 'user', content: msg },
-          ],
-        });
+        const res = await api.post(
+          '/ai/chat',
+          {
+            messages: [
+              {
+                role: 'system',
+                content: `You are the InternOps AI Assistant. The current user's role is: ${roleLabel}. Give concise, role-aware answers about InternOps platform features, permissions, and how-to guidance.`,
+              },
+              // last 6 messages for context
+              ...history.slice(-6).map((h) => ({
+                role: h.role === 'bot' ? 'assistant' : h.role,
+                content: h.content,
+              })),
+              { role: 'user', content: msg },
+            ],
+          },
+          // The failure is already surfaced as an in-chat message below, so
+          // suppress the global error toast to avoid showing the user two
+          // separate error messages for the same failed request (#1795).
+          { _suppressGlobalError: true }
+        );
 
         const answer =
           res.data?.content ||
           "Sorry, I couldn't process that. Please try rephrasing.";
         setIsTyping(false);
         addBot(answer);
-      } catch {
+      } catch (err) {
         setIsTyping(false);
+        const { message, retryable } = getAiChatErrorMessage(err);
         addBot(
-          '⚠️ AI service is temporarily unavailable. Please try again in a moment.'
+          `⚠️ ${message}`,
+          retryable
+            ? [{ label: 'Retry', onClick: () => handleSend(msg) }]
+            : null
         );
       }
     },

@@ -32,6 +32,7 @@ const app = Fastify({
 });
 
 // Layer 1: Register monitoring routes BEFORE global middleware to ensure observability
+
 app.get(
   '/metrics',
   {
@@ -53,7 +54,6 @@ app.get(
   },
   metrics.metricsEndpoint
 );
-
 app.get(
   '/health',
   {

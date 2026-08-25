@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.auth import User, get_current_user
 from app.core.rate_limit import enforce_rate_limit
-from app.core.rbac import require_roles
+from app.core.rbac import require_permission
 from app.core.security import sanitize_prompt
 from app.core.usage import (
     DAILY_AI_LIMIT,
@@ -47,24 +47,16 @@ MAX_MESSAGE_CHARS = 4000
 MAX_TOTAL_CHARS = 32000
 
 
-def _messages_to_prompt(messages: List[dict]) -> str:
-    """Flatten a chat-style message list into a single prompt string."""
-    role_labels = {"user": "User", "assistant": "Assistant", "system": "System"}
-    return "\n\n".join(
-        f"{role_labels.get(m['role'], m['role'])}: {m['content']}" for m in messages
-    )
-
-
 async def call_provider(user_id: str, messages: List[dict]) -> ProviderResult:
     provider = get_provider()
     primary_provider = provider.provider_name
     model = provider.model_name
-    prompt = _messages_to_prompt(messages)
-
-    key = cache_key(primary_provider, model, prompt, 0.7)
+    key = cache_key(primary_provider, model, messages, 0.7)
 
     async def _compute():
-        content, used_provider = await ai_orchestrator.generate_text_with_fallback(prompt)
+        content, used_provider = await ai_orchestrator.generate_chat_with_fallback(
+            messages
+        )
         return {"content": content, "provider": used_provider}
 
     res_dict, cached = await get_or_set(key, _compute)
@@ -87,7 +79,7 @@ def get_provider_health() -> list:
     "/chat",
     response_model=ChatResponse,
     summary="Send chat message to AI",
-    dependencies=[Depends(require_roles("ADMIN", "SENIOR_TL", "TL"))],
+    dependencies=[Depends(require_permission("AI_CHAT"))],
 )
 async def chat(
     request: Request,
@@ -210,7 +202,7 @@ async def generate_text(request: GenerationRequest):
     "/health",
     response_model=HealthResponse,
     summary="Check AI provider health",
-    dependencies=[Depends(require_roles("ADMIN"))],
+    dependencies=[Depends(require_permission("AI_HEALTH"))],
 )
 async def health():
     from app.providers.orchestrator import get_circuit_breaker
@@ -242,7 +234,7 @@ async def health():
     "/usage",
     response_model=UsageResponse,
     summary="Get AI usage report",
-    dependencies=[Depends(require_roles("ADMIN"))],
+    dependencies=[Depends(require_permission("AI_USAGE"))],
 )
 async def usage():
     report = await get_daily_usage_report()

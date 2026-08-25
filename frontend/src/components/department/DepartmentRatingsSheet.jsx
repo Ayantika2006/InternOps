@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Expand, Search, Star, X } from 'lucide-react';
 
 const MEMBER_COLUMN_WIDTH = 'w-72 min-w-72 max-w-72';
-const ROLE_COLUMN_WIDTH = 'w-40 min-w-40 max-w-40';
+const ROLE_COLUMN_WIDTH = 'w-36 min-w-36 max-w-36';
 const FULLSCREEN_MIN_ROWS = 14;
 
 function ScoreBadge({ value }) {
@@ -23,9 +23,63 @@ function ScoreBadge({ value }) {
 
   return (
     <span
-      className={`inline-flex min-w-14 items-center justify-center rounded-xl border px-2.5 py-2 text-sm font-black shadow-sm ${tone}`}
+      className={`inline-flex min-w-14 items-center justify-center rounded-xl border px-2.5 py-1.5 text-sm font-black shadow-sm ${tone}`}
     >
       {score.toFixed(1).replace(/\.0$/, '')}/10
+    </span>
+  );
+}
+
+function EligibilityBadge({ score }) {
+  if (score == null) {
+    return (
+      <span className="font-bold text-slate-400 dark:text-slate-500">—</span>
+    );
+  }
+
+  const val = Number(score);
+  if (Number.isNaN(val)) {
+    return (
+      <span className="font-bold text-slate-400 dark:text-slate-500">—</span>
+    );
+  }
+
+  const rounded = Math.round(val);
+  if (rounded >= 1 && rounded <= 4) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 shadow-sm">
+        🔴 Not Eligible
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 shadow-sm">
+      🟢 Eligible
+    </span>
+  );
+}
+
+function StatusBadge({ status = 'ACTIVE' }) {
+  const s = String(status).toUpperCase();
+  const styles = {
+    ACTIVE:
+      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    COMPLETED:
+      'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
+    ON_HOLD:
+      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    TERMINATED:
+      'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-extrabold ${
+        styles[s] || styles.ACTIVE
+      }`}
+    >
+      {s}
     </span>
   );
 }
@@ -39,27 +93,89 @@ function formatDate(value) {
   });
 }
 
-function RatingsGrid({ members, search, fullScreen }) {
+function RatingsGrid({
+  members,
+  search,
+  statusFilter,
+  ratingFilter,
+  eligibilityFilter,
+  fullScreen,
+}) {
   const filteredMembers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return members;
+    let result = members;
 
-    return members.filter((member) =>
-      `${member.full_name || ''} ${member.email || ''} ${member.role || ''}`
-        .toLowerCase()
-        .includes(term)
-    );
-  }, [members, search]);
+    // Search filter
+    const term = search.trim().toLowerCase();
+    if (term) {
+      result = result.filter((member) =>
+        `${member.full_name || ''} ${member.email || ''} ${member.role || ''} ${member.department_name || ''}`
+          .toLowerCase()
+          .includes(term)
+      );
+    }
+
+    // Intern Status filter
+    if (statusFilter && statusFilter !== 'all') {
+      result = result.filter(
+        (m) =>
+          (m.internship_status || 'ACTIVE').toUpperCase() ===
+          statusFilter.toUpperCase()
+      );
+    }
+
+    // Rating score filter (1 to 10)
+    if (ratingFilter && ratingFilter !== 'all') {
+      const targetRating = Number(ratingFilter);
+      result = result.filter((member) => {
+        const score =
+          member.average_score != null
+            ? Number(member.average_score)
+            : member.latest_score != null
+              ? Number(member.latest_score)
+              : null;
+        if (score == null || Number.isNaN(score)) return false;
+
+        return Math.round(score) === targetRating;
+      });
+    }
+
+    // Eligibility filter (ELIGIBLE / NOT_ELIGIBLE)
+    if (eligibilityFilter && eligibilityFilter !== 'all') {
+      result = result.filter((member) => {
+        const score =
+          member.average_score != null
+            ? Number(member.average_score)
+            : member.latest_score != null
+              ? Number(member.latest_score)
+              : null;
+        if (score == null || Number.isNaN(score)) return false;
+
+        const rounded = Math.round(score);
+        if (eligibilityFilter === 'ELIGIBLE') {
+          return rounded >= 5 && rounded <= 10;
+        }
+        if (eligibilityFilter === 'NOT_ELIGIBLE') {
+          return rounded >= 1 && rounded <= 4;
+        }
+        return true;
+      });
+    }
+
+    return result;
+  }, [members, search, statusFilter, ratingFilter, eligibilityFilter]);
 
   if (filteredMembers.length === 0) {
     return (
       <div className="p-10 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-        No department members match this search.
+        No department members match the selected filters.
       </div>
     );
   }
 
   const headers = [
+    'Department',
+    'Status',
+    'Eligibility',
     'Average',
     'Ratings',
     'Latest',
@@ -75,7 +191,7 @@ function RatingsGrid({ members, search, fullScreen }) {
           : 'max-h-[62vh] overflow-auto'
       }
     >
-      <table className="min-w-[1180px] w-full border-separate border-spacing-0 text-sm">
+      <table className="min-w-[1300px] w-full border-separate border-spacing-0 text-sm">
         <thead className="sticky top-0 z-30 bg-slate-50 dark:bg-slate-950">
           <tr>
             <th
@@ -105,6 +221,11 @@ function RatingsGrid({ members, search, fullScreen }) {
                 ? 'bg-white dark:bg-slate-900'
                 : 'bg-slate-50 dark:bg-slate-800';
 
+            const effectiveScore =
+              member.average_score != null
+                ? member.average_score
+                : member.latest_score;
+
             return (
               <tr key={member.id} className={rowBackground}>
                 <td
@@ -123,6 +244,15 @@ function RatingsGrid({ members, search, fullScreen }) {
                   <span className="rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-xs font-extrabold text-indigo-800 dark:border-indigo-700 dark:bg-indigo-900 dark:text-indigo-100">
                     {member.role}
                   </span>
+                </td>
+                <td className="border-b border-r border-slate-200 px-4 py-3 font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200">
+                  {member.department_name || '—'}
+                </td>
+                <td className="border-b border-r border-slate-200 px-4 py-3 dark:border-slate-600">
+                  <StatusBadge status={member.internship_status} />
+                </td>
+                <td className="border-b border-r border-slate-200 px-4 py-3 dark:border-slate-600">
+                  <EligibilityBadge score={effectiveScore} />
                 </td>
                 <td className="border-b border-r border-slate-200 px-4 py-3 dark:border-slate-600">
                   <ScoreBadge value={member.average_score} />
@@ -197,6 +327,9 @@ export default function DepartmentRatingsSheet({
   onRetry,
 }) {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [ratingFilter, setRatingFilter] = useState('all');
+  const [eligibilityFilter, setEligibilityFilter] = useState('all');
   const [fullScreen, setFullScreen] = useState(false);
 
   useEffect(() => {
@@ -224,11 +357,11 @@ export default function DepartmentRatingsSheet({
             Department ratings sheet
           </p>
           <h3 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-white">
-            {departmentName || 'Department'}
+            {departmentName || 'All Departments'}
           </h3>
           <p className="mt-1 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-            Ratings are scored out of 10
+            Ratings are scored 1 to 10 (1–4: 🔴 Not Eligible, 5–10: 🟢 Eligible)
           </p>
         </div>
 
@@ -251,21 +384,72 @@ export default function DepartmentRatingsSheet({
               className="mt-1 block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </label>
-          <div className="relative min-w-56 flex-1">
+
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
+            Rating
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value)}
+              className="mt-1 block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium"
+            >
+              <option value="all">All Ratings</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
+            Eligibility
+            <select
+              value={eligibilityFilter}
+              onChange={(e) => setEligibilityFilter(e.target.value)}
+              className="mt-1 block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium"
+            >
+              <option value="all">All Eligibility</option>
+              <option value="ELIGIBLE">🟢 Eligible (5-10)</option>
+              <option value="NOT_ELIGIBLE">🔴 Not Eligible (1-4)</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="mt-1 block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium"
+            >
+              <option value="all">All Status</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="ON_HOLD">ON_HOLD</option>
+              <option value="TERMINATED">TERMINATED</option>
+            </select>
+          </label>
+
+          <div className="relative min-w-44 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search members..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
+
           {!isFullScreen ? (
             <button
               type="button"
               onClick={() => setFullScreen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-extrabold text-white hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
             >
               <Expand className="h-4 w-4" />
               View Full
@@ -274,7 +458,7 @@ export default function DepartmentRatingsSheet({
             <button
               type="button"
               onClick={() => setFullScreen(false)}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
             >
               <X className="h-4 w-4" />
               Close
@@ -304,6 +488,9 @@ export default function DepartmentRatingsSheet({
         <RatingsGrid
           members={data.members}
           search={search}
+          statusFilter={statusFilter}
+          ratingFilter={ratingFilter}
+          eligibilityFilter={eligibilityFilter}
           fullScreen={isFullScreen}
         />
       ) : (

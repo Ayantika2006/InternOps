@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from pydantic import UUID4
 
 from app.core.auth import User, get_current_user
-from app.core.rbac import require_roles
+from app.core.rbac import require_permission
 from app.core.database import get_pool
 from app.attendance.schemas.anomaly_schema import (
     AnomalyResponse,
@@ -47,7 +47,7 @@ async def run_anomaly_job_async():
     "/analyze",
     response_model=TriggerAnalysisResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    dependencies=[Depends(require_roles("ADMIN", "SENIOR_TL", "TL"))],
+    dependencies=[Depends(require_permission("ATTENDANCE_MANAGE"))],
 )
 async def trigger_analysis(
     background_tasks: BackgroundTasks,
@@ -65,7 +65,7 @@ async def trigger_analysis(
 @router.get(
     "",
     response_model=AnomalyListResponse,
-    dependencies=[Depends(require_roles("ADMIN", "SENIOR_TL", "TL", "CAPTAIN"))]
+    dependencies=[Depends(require_permission("ATTENDANCE_VIEW"))]
 )
 async def list_anomalies(
     current_user: User = Depends(get_current_user),
@@ -158,7 +158,7 @@ async def list_anomalies(
 @router.post(
     "/{anomaly_id}/view",
     response_model=AnomalyResponse,
-    dependencies=[Depends(require_roles("ADMIN", "SENIOR_TL", "TL", "CAPTAIN"))]
+    dependencies=[Depends(require_permission("ATTENDANCE_VIEW"))]
 )
 async def mark_anomaly_viewed(
     anomaly_id: str,
