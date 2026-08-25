@@ -2,9 +2,9 @@ name: InternOps CI
 
 on:
   push:
-    branches: [ master, 'feature/*' ]
+    branches: [master, 'feature/*']
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   test:
@@ -54,24 +54,28 @@ jobs:
 
       - name: Run backend linting
         run: cd backend && npm run lint
-      -  - name: Wait for PostgreSQL
-  env:
-    PGPASSWORD: postgres
-  run: |
-    until pg_isready -h localhost -p 5432 -U postgres -d internops_test; do
-      echo "Waiting for PostgreSQL..."
-      sleep 2
-    done
 
-- name: Verify PostgreSQL connection
-  env:
-    PGPASSWORD: postgres
-  run: |
-    psql -h localhost -p 5432 -U postgres -d internops_test -c "SELECT current_user, current_database();"
+      - name: Wait for PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres -d internops_test; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
 
-- name: Run migrations
-  run: cd backend && npm run migrate  
-  - name: Seed test data
+      - name: Verify PostgreSQL connection
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 5432 -U postgres -d internops_test -c "SELECT current_user, current_database();"
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/internops_test
+        run: cd backend && npm run migrate
+
+      - name: Seed test data
         run: cd backend && npm run seed
 
       - name: Run Jest tests
@@ -79,7 +83,6 @@ jobs:
 
       - name: Run Lint
         run: npm run lint
-
 
       - name: Run Frontend Tests
         run: cd frontend && npm run test
