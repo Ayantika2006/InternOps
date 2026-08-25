@@ -94,7 +94,7 @@ describe('Ratings history search bar - TL/Senior TL direct intern lookup', () =>
       </QueryClientProvider>
     );
 
-  it('shows the matched intern\'s ratings the moment a unique name is typed, with no click on the result needed', async () => {
+  it("shows the matched intern's ratings the moment a unique name is typed, with no click on the result needed", async () => {
     renderRatings();
 
     await waitFor(() => {
