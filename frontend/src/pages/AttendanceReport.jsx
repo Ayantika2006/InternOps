@@ -1,27 +1,27 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 
-const STATUS_OPTIONS = ["present", "absent", "leave"];
+const STATUS_OPTIONS = ['present', 'absent', 'leave'];
 const COLUMN_OPTIONS = [
-  { key: "name", label: "Employee Name" },
-  { key: "id", label: "Employee ID" },
-  { key: "department", label: "Department" },
-  { key: "date", label: "Date" },
-  { key: "status", label: "Attendance Status" },
+  { key: 'name', label: 'Employee Name' },
+  { key: 'id', label: 'Employee ID' },
+  { key: 'department', label: 'Department' },
+  { key: 'date', label: 'Date' },
+  { key: 'status', label: 'Attendance Status' },
 ];
 
-const DEFAULT_COLUMNS = ["name", "id", "department", "date", "status"];
+const DEFAULT_COLUMNS = ['name', 'id', 'department', 'date', 'status'];
 
 function AttendanceReport() {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-const [departments] = useState([]);
-const [statuses, setStatuses] = useState([]);
-const [roles] = useState([]);
-const [employees] = useState([]);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [departments] = useState([]);
+  const [statuses, setStatuses] = useState([]);
+  const [roles] = useState([]);
+  const [employees] = useState([]);
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const toggleValue = (value, setter) => {
     setter((current) =>
@@ -35,17 +35,17 @@ const [employees] = useState([]);
     const today = new Date();
     const start = new Date(today);
 
-    if (preset === "week") {
+    if (preset === 'week') {
       const day = today.getDay();
       const diff = day === 0 ? 6 : day - 1;
       start.setDate(today.getDate() - diff);
     }
 
-    if (preset === "month") {
+    if (preset === 'month') {
       start.setDate(1);
     }
 
-    if (preset === "quarter") {
+    if (preset === 'quarter') {
       const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
       start.setMonth(quarterStartMonth, 1);
     }
@@ -55,15 +55,15 @@ const [employees] = useState([]);
   };
 
   const generateReport = async () => {
-    setError("");
+    setError('');
 
     if (!from || !to) {
-      setError("Please select both From and To dates.");
+      setError('Please select both From and To dates.');
       return;
     }
 
     if (from > to) {
-      setError("From date must be earlier than To date.");
+      setError('From date must be earlier than To date.');
       return;
     }
 
@@ -73,21 +73,21 @@ const [employees] = useState([]);
       const params = new URLSearchParams({
         from,
         to,
-        departments: departments.join(","),
-        statuses: statuses.join(","),
-        roles: roles.join(","),
-        employees: employees.join(","),
+        departments: departments.join(','),
+        statuses: statuses.join(','),
+        roles: roles.join(','),
+        employees: employees.join(','),
       });
 
       const response = await fetch(
         `/api/v1/attendance/report?${params.toString()}`,
         {
-          credentials: "include",
+          credentials: 'include',
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to generate attendance report.");
+        throw new Error('Failed to generate attendance report.');
       }
 
       const data = await response.json();
@@ -104,7 +104,7 @@ const [employees] = useState([]);
       const result = {};
 
       columns.forEach((column) => {
-        result[column] = row[column] ?? "";
+        result[column] = row[column] ?? '';
       });
 
       return result;
@@ -120,17 +120,19 @@ const [employees] = useState([]);
     );
 
     const body = visibleRows.map((row) =>
-      columns.map((column) => `"${String(row[column] ?? "").replaceAll('"', '""')}"`)
+      columns.map(
+        (column) => `"${String(row[column] ?? '').replaceAll('"', '""')}"`
+      )
     );
 
-    const csv = [header, ...body].map((line) => line.join(",")).join("\n");
+    const csv = [header, ...body].map((line) => line.join(',')).join('\n');
 
     const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
+      type: 'text/csv;charset=utf-8;',
     });
 
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
 
     link.href = url;
     link.download = `attendance-report-${from}-to-${to}.csv`;
@@ -140,30 +142,28 @@ const [employees] = useState([]);
   };
 
   const exportExcel = () => {
-  if (!visibleRows.length) return;
+    if (!visibleRows.length) return;
 
-  const header = columns.map(
-    (column) =>
-      COLUMN_OPTIONS.find((item) => item.key === column)?.label || column
-  );
+    const header = columns.map(
+      (column) =>
+        COLUMN_OPTIONS.find((item) => item.key === column)?.label || column
+    );
 
-  const tableRows = visibleRows
-    .map(
-      (row) => `
+    const tableRows = visibleRows
+      .map(
+        (row) => `
         <tr>
-          ${columns
-            .map((column) => `<td>${row[column] ?? ""}</td>`)
-            .join("")}
+          ${columns.map((column) => `<td>${row[column] ?? ''}</td>`).join('')}
         </tr>
       `
-    )
-    .join("");
+      )
+      .join('');
 
-  const table = `
+    const table = `
   <table border="1">
     <thead>
       <tr>
-        ${header.map((item) => `<th>${item}</th>`).join("")}
+        ${header.map((item) => `<th>${item}</th>`).join('')}
       </tr>
     </thead>
     <tbody>
@@ -172,22 +172,22 @@ const [employees] = useState([]);
   </table>
 `;
 
-  const blob = new Blob([table], {
-    type: "application/vnd.ms-excel",
-  });
+    const blob = new Blob([table], {
+      type: 'application/vnd.ms-excel',
+    });
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
 
-  link.href = url;
-  link.download = `attendance-report-${from}-to-${to}.xls`;
+    link.href = url;
+    link.download = `attendance-report-${from}-to-${to}.xls`;
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
-};
+    URL.revokeObjectURL(url);
+  };
 
   const exportPDF = () => {
     window.print();
@@ -215,21 +215,21 @@ const [employees] = useState([]);
 
             <div className="flex flex-wrap gap-3 mb-4">
               <button
-                onClick={() => applyPreset("week")}
+                onClick={() => applyPreset('week')}
                 className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700"
               >
                 This Week
               </button>
 
               <button
-                onClick={() => applyPreset("month")}
+                onClick={() => applyPreset('month')}
                 className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700"
               >
                 This Month
               </button>
 
               <button
-                onClick={() => applyPreset("quarter")}
+                onClick={() => applyPreset('quarter')}
                 className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700"
               >
                 This Quarter
@@ -300,7 +300,7 @@ const [employees] = useState([]);
             disabled={loading}
             className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50"
           >
-            {loading ? "Generating..." : "Generate Report"}
+            {loading ? 'Generating...' : 'Generate Report'}
           </button>
         </div>
 
@@ -339,9 +339,8 @@ const [employees] = useState([]);
                   <tr className="border-b">
                     {columns.map((column) => (
                       <th key={column} className="text-left p-3">
-                        {COLUMN_OPTIONS.find(
-                          (item) => item.key === column
-                        )?.label || column}
+                        {COLUMN_OPTIONS.find((item) => item.key === column)
+                          ?.label || column}
                       </th>
                     ))}
                   </tr>
