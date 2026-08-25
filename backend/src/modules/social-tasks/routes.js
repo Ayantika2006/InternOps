@@ -24,6 +24,10 @@ const createTaskSchema = z.object({
     .refine(
       (v) => !v || !Number.isNaN(Date.parse(v)),
       'deadline must be a valid ISO date'
+    )
+    .refine(
+      (v) => !v || new Date(v).getTime() > Date.now(),
+      'deadline must be in the future'
     ),
 });
 
@@ -58,6 +62,10 @@ const updateTaskSchema = z.object({
     .refine(
       (v) => !v || !Number.isNaN(Date.parse(v)),
       'deadline must be a valid ISO date'
+    )
+    .refine(
+      (v) => !v || new Date(v).getTime() > Date.now(),
+      'deadline must be in the future'
     ),
 });
 async function notifyAllInternsAsync(task, log) {
