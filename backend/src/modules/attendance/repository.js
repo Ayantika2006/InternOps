@@ -336,6 +336,59 @@ async function markAnomalyViewed(anomalyId, managerId, isAdmin) {
   return res.rows[0];
 }
 
+async function attendanceSummaryByRole(from, to) {
+  const res = await pool.query(
+    `
+    SELECT
+      u.id AS user_id,
+      u.full_name AS intern_name,
+      u.email,
+      u.role,
+      a.status,
+      COUNT(*) AS count
+    FROM attendance a
+    JOIN users u
+      ON a.user_id = u.id
+      AND u.deleted_at IS NULL
+    WHERE a.date BETWEEN $1 AND $2
+      AND a.deleted_at IS NULL
+      AND u.role = 'INTERN'
+    GROUP BY u.id, u.full_name, u.email, u.role, a.status
+    ORDER BY u.full_name, a.status
+    `,
+    [from, to]
+  );
+
+  return res.rows;
+}
+
+async function ratingsSummary(from, to) {
+  const res = await pool.query(
+    `
+    SELECT
+      u.id AS user_id,
+      u.full_name AS intern_name,
+      u.email,
+      u.role,
+      ROUND(AVG(r.score)::numeric, 2) AS avg_score,
+      COUNT(*) AS total
+    FROM ratings r
+    JOIN users u
+      ON r.rated_user_id = u.id
+      AND u.deleted_at IS NULL
+    WHERE r.created_at >= $1::date
+      AND r.created_at < ($2::date + INTERVAL '1 day')
+      AND r.deleted_at IS NULL
+      AND u.role = 'INTERN'
+    GROUP BY u.id, u.full_name, u.email, u.role
+    ORDER BY u.full_name
+    `,
+    [from, to]
+  );
+
+  return res.rows;
+}
+
 module.exports = {
   markAttendance,
   getAttendance,
@@ -348,4 +401,6 @@ module.exports = {
   getUsersByDepartment,
   getAnomalies,
   markAnomalyViewed,
+  attendanceSummaryByRole,
+  ratingsSummary,
 };
