@@ -73,7 +73,10 @@ jobs:
       - name: Run migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/internops_test
-        run: cd backend && npm run migrate
+        run: |
+          cd backend
+          echo "Running database migrations..."
+          node src/db/migrate.js
 
       - name: Seed test data
         run: cd backend && npm run seed
