@@ -5,6 +5,7 @@ ROLE_PERMISSIONS = {
     "AI_CHAT": {"ADMIN", "SENIOR_TL", "TL"},
     "AI_HEALTH": {"ADMIN"},
     "AI_USAGE": {"ADMIN"},
+     "ATTENDANCE_ANOMALIES": {"ADMIN", "SENIOR_TL", "TL", "CAPTAIN"},
 }
 
 

@@ -18,12 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.auth import User, get_current_user
 from app.core.rate_limit import enforce_rate_limit
-from app.core.rbac import require_roles
-from app.core.usage import (
-from ..core.auth import User, get_current_user
-from ..core.rate_limit import enforce_rate_limit
-from ..core.rbac import require_permission
-from ..core.cache import cache_key, get_or_set
+from app.core.rbac import require_permission
 from ..core.usage import (
     DAILY_AI_LIMIT,
     get_daily_usage_report,
@@ -39,8 +34,15 @@ from app.models.ai import (
     UsageResponse,
     GenerationRequest,
 )
-from app.providers.base import AIProviderError, ProviderAPIError, ProviderRateLimitError
-from app.providers.registry import get_configured_providers_health, get_provider
+from app.providers.base import(
+    AIProviderError,
+    ProviderAPIError,
+    ProviderRateLimitError,
+)
+from app.providers.registry import(
+   get_configured_providers_health,
+   get_provider,
+)
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -79,7 +81,7 @@ def get_provider_health() -> list:
     "/chat",
     response_model=ChatResponse,
     summary="Send chat message to AI",
-    dependencies=[Depends(require_roles("ADMIN", "SENIOR_TL", "TL"))],
+    dependencies=[Depends(require_permission("AI_CHAT"))],
 )
 async def chat(
     request: Request,
@@ -87,7 +89,7 @@ async def chat(
     current_user: User = Depends(get_current_user),
     _rate_limited: None = Depends(enforce_rate_limit),
 ):
-    
+
     final_messages: List[dict] = []
 
     if body.messages:
@@ -189,7 +191,7 @@ async def generate_text(request: GenerationRequest):
     "/health",
     response_model=HealthResponse,
     summary="Check AI provider health",
-    dependencies=[Depends(require_roles("ADMIN"))],
+    dependencies=[Depends(require_permission("AI_HEALTH"))],
 )
 async def health():
     providers = [
@@ -210,7 +212,7 @@ async def health():
     "/usage",
     response_model=UsageResponse,
     summary="Get AI usage report",
-    dependencies=[Depends(require_roles("ADMIN"))],
+    dependencies=[Depends(require_permission("AI_USAGE"))],
 )
 async def usage():
     report = await get_daily_usage_report()
