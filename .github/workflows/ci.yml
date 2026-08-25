@@ -17,11 +17,10 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: internops_test
-          POSTGRES_INITDB_ARGS: "--username=postgres"
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d internops_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -45,11 +44,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: package-lock.json
 
       - name: Install all dependencies
-        shell: bash
         run: npm ci --no-audit --no-fund
 
       - name: Run backend linting
@@ -68,7 +66,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h localhost -p 5432 -U postgres -d internops_test -c "SELECT current_user, current_database();"
+          psql -h localhost -p 5432 -U postgres -d internops_test \
+            -c "SELECT current_user, current_database();"
 
       - name: Run migrations
         env:
@@ -76,7 +75,13 @@ jobs:
         run: |
           cd backend
           echo "Running database migrations..."
-          node src/db/migrate.js
+          echo "Node version:"
+          node --version
+          echo "Checking migration files:"
+          ls -la migrations
+          echo "Running migration..."
+          set -o pipefail
+          node src/db/migrate.js 2>&1 | tee migration-output.log
 
       - name: Seed test data
         run: cd backend && npm run seed
