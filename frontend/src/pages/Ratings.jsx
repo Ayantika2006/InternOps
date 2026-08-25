@@ -357,6 +357,7 @@ export default function Ratings({
                       placeholder="Select member"
                       className="w-full"
                       searchable={true}
+                      autoSelectOnMatch={isManager}
                     />
                     {!isProjectView && (
                       <button
@@ -545,6 +546,7 @@ export default function Ratings({
                       placeholder="Select member"
                       className="w-full"
                       searchable={true}
+                      autoSelectOnMatch={isManager}
                     />
                     {!isProjectView && (
                       <button
