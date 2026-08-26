@@ -68,26 +68,55 @@ async function getDepartmentAttendanceSheet({
   from,
   to,
 }) {
+  const isAllDepts = !departmentId || departmentId === 'all';
   const memberScope = isAdmin
-    ? `SELECT id, full_name, email, role, department_id
-       FROM users
-       WHERE department_id = $1 AND deleted_at IS NULL`
-    : `WITH RECURSIVE visible_users AS (
-         SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
-         FROM users
-         WHERE id = $2 AND deleted_at IS NULL
-         UNION ALL
-         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
-                visible_users.depth + 1
+    ? isAllDepts
+      ? `SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
          FROM users u
-         INNER JOIN visible_users ON u.manager_id = visible_users.id
-         WHERE u.deleted_at IS NULL AND visible_users.depth < 100
-       )
-       SELECT id, full_name, email, role, department_id
-       FROM visible_users
-       WHERE department_id = $1`;
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.deleted_at IS NULL`
+      : `SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.department_id = $1 AND u.deleted_at IS NULL`
+    : isAllDepts
+      ? `WITH RECURSIVE visible_users AS (
+           SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
+           FROM users
+           WHERE id = $1 AND deleted_at IS NULL
+           UNION ALL
+           SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
+                  visible_users.depth + 1
+           FROM users u
+           INNER JOIN visible_users ON u.manager_id = visible_users.id
+           WHERE u.deleted_at IS NULL AND visible_users.depth < 100
+         )
+         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM visible_users u
+         LEFT JOIN departments d ON d.id = u.department_id`
+      : `WITH RECURSIVE visible_users AS (
+           SELECT id, full_name, email, role, department_id, manager_id, 0 AS depth
+           FROM users
+           WHERE id = $2 AND deleted_at IS NULL
+           UNION ALL
+           SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.manager_id,
+                  visible_users.depth + 1
+           FROM users u
+           INNER JOIN visible_users ON u.manager_id = visible_users.id
+           WHERE u.deleted_at IS NULL AND visible_users.depth < 100
+         )
+         SELECT u.id, u.full_name, u.email, u.role, u.department_id, u.internship_status, d.name AS department_name
+         FROM visible_users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.department_id = $1`;
 
-  const memberParams = isAdmin ? [departmentId] : [departmentId, requesterId];
+  const memberParams = isAllDepts
+    ? isAdmin
+      ? []
+      : [requesterId]
+    : isAdmin
+      ? [departmentId]
+      : [departmentId, requesterId];
 
   const membersResult = await pool.query(memberScope, memberParams);
   const members = membersResult.rows;
@@ -205,6 +234,23 @@ async function getAuthorizedSubordinates(managerId) {
   return res.rows;
 }
 
+async function getAllUsers() {
+  const res = await pool.query(
+    'SELECT id, full_name, email, role, department_id FROM users WHERE deleted_at IS NULL'
+  );
+
+  return res.rows;
+}
+
+async function getUsersByDepartment(departmentId) {
+  const res = await pool.query(
+    'SELECT id, full_name, email, role, department_id FROM users WHERE deleted_at IS NULL AND department_id = $1',
+    [departmentId]
+  );
+
+  return res.rows;
+}
+
 async function getAnomalies(managerId, isAdmin, filters = {}) {
   const { intern_id, flag_type, viewed } = filters;
   let query = `
@@ -290,6 +336,59 @@ async function markAnomalyViewed(anomalyId, managerId, isAdmin) {
   return res.rows[0];
 }
 
+async function attendanceSummaryByRole(from, to) {
+  const res = await pool.query(
+    `
+    SELECT
+      u.id AS user_id,
+      u.full_name AS intern_name,
+      u.email,
+      u.role,
+      a.status,
+      COUNT(*) AS count
+    FROM attendance a
+    JOIN users u
+      ON a.user_id = u.id
+      AND u.deleted_at IS NULL
+    WHERE a.date BETWEEN $1 AND $2
+      AND a.deleted_at IS NULL
+      AND u.role = 'INTERN'
+    GROUP BY u.id, u.full_name, u.email, u.role, a.status
+    ORDER BY u.full_name, a.status
+    `,
+    [from, to]
+  );
+
+  return res.rows;
+}
+
+async function ratingsSummary(from, to) {
+  const res = await pool.query(
+    `
+    SELECT
+      u.id AS user_id,
+      u.full_name AS intern_name,
+      u.email,
+      u.role,
+      ROUND(AVG(r.score)::numeric, 2) AS avg_score,
+      COUNT(*) AS total
+    FROM ratings r
+    JOIN users u
+      ON r.rated_user_id = u.id
+      AND u.deleted_at IS NULL
+    WHERE r.created_at >= $1::date
+      AND r.created_at < ($2::date + INTERVAL '1 day')
+      AND r.deleted_at IS NULL
+      AND u.role = 'INTERN'
+    GROUP BY u.id, u.full_name, u.email, u.role
+    ORDER BY u.full_name
+    `,
+    [from, to]
+  );
+
+  return res.rows;
+}
+
 module.exports = {
   markAttendance,
   getAttendance,
@@ -298,6 +397,10 @@ module.exports = {
   bulkMark,
   listHierarchySubordinates,
   getAuthorizedSubordinates,
+  getAllUsers,
+  getUsersByDepartment,
   getAnomalies,
   markAnomalyViewed,
+  attendanceSummaryByRole,
+  ratingsSummary,
 };

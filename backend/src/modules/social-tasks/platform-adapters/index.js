@@ -17,7 +17,11 @@ const adapters = {
  * @param {string} hostname - The hostname/domain of the URL.
  * @returns {{
  *   domain: string,
- *   parse: (rawHtml: string) => { text: string, visibleSignals: object }
+ *   parse: (rawHtml: string) => {
+ *     text: string | null,
+ *     comments: string[],
+ *     visibleSignals: { likes: string | null, shares: string | null }
+ *   } | null
  * } | null} The platform adapter.
  */
 function getAdapterForDomain(hostname) {

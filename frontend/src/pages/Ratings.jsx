@@ -112,14 +112,19 @@ export default function Ratings({
     error: sheetError,
     refetch: refetchSheet,
   } = useQuery({
-    queryKey: ['departmentRatingsSheet', activeDeptId, sheetFrom, sheetTo],
+    queryKey: [
+      'departmentRatingsSheet',
+      activeDeptId || 'all',
+      sheetFrom,
+      sheetTo,
+    ],
     queryFn: () =>
       api
-        .get(`/ratings/department/${activeDeptId}/sheet`, {
+        .get(`/ratings/department/${activeDeptId || 'all'}/sheet`, {
           params: { from: sheetFrom, to: sheetTo },
         })
         .then((res) => res.data),
-    enabled: viewAll && !!activeDeptId && !isProjectView,
+    enabled: viewAll && !isProjectView,
   });
 
   const {
@@ -352,8 +357,9 @@ export default function Ratings({
                       placeholder="Select member"
                       className="w-full"
                       searchable={true}
+                      autoSelectOnMatch={isManager}
                     />
-                    {!isProjectView && activeDeptId && (
+                    {!isProjectView && (
                       <button
                         type="button"
                         onClick={() => setViewAll((current) => !current)}
@@ -540,8 +546,9 @@ export default function Ratings({
                       placeholder="Select member"
                       className="w-full"
                       searchable={true}
+                      autoSelectOnMatch={isManager}
                     />
-                    {!isProjectView && activeDeptId && (
+                    {!isProjectView && (
                       <button
                         type="button"
                         onClick={() => setViewAll((current) => !current)}

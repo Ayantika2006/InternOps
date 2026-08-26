@@ -40,6 +40,7 @@ import useAuthStore from '../store/auth';
 import useFeatureFlagsStore from '../store/featureFlags';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { ROLE_LABEL } from '../constants/roles';
+import FloatingChatbot from '../components/FloatingChatbot';
 
 const MANAGER_ROLES = ['ADMIN', 'SENIOR_TL', 'TL', 'CAPTAIN'];
 const ADMIN_AND_SENIOR_TL_ROLES = ['ADMIN', 'SENIOR_TL'];
@@ -248,6 +249,16 @@ export default function DashboardLayout() {
     queryKey: QUERY_KEYS.USER_PROFILE,
     queryFn: () => api.get('/users/me').then((r) => r.data),
   });
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => api.get('/notifications/unread-count').then((r) => r.data),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+    enabled: !!user,
+  });
+
+  const unreadCount = unreadData?.unread || 0;
 
   const displayName = me?.full_name || user?.fullName || user?.email;
   const avatarUrl = me?.avatar_url || null;
@@ -526,9 +537,22 @@ export default function DashboardLayout() {
             <Link
               to="/notifications"
               onClick={saveSidebarScroll}
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications (${unreadCount} unread)`
+                  : 'Notifications'
+              }
+              title="Notifications"
               className="w-10 h-10 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition"
             >
-              <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              <div className="relative">
+                <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center text-[9px] font-extrabold text-white bg-red-500 rounded-full border border-white dark:border-slate-900 select-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
             </Link>
             <Link
               to="/profile"
@@ -558,6 +582,7 @@ export default function DashboardLayout() {
         onCancel={() => setShowLogoutConfirm(false)}
         danger={true}
       />
+      <FloatingChatbot />
     </div>
   );
 }
