@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../lib/axios';
 import { connectSocket, disconnectSocket } from '../lib/socket';
@@ -225,11 +225,38 @@ export default function DashboardLayout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (accessToken) connectSocket(accessToken);
-    return () => disconnectSocket();
-  }, [accessToken]);
+    if (!accessToken) return undefined;
+
+    const socket = connectSocket(accessToken);
+
+    // Live-update the bell badge the instant a new notification arrives,
+    // instead of waiting for the next 30s poll (#1753).
+    const handleNotificationReceived = (payload) => {
+      if (typeof payload?.unreadCount === 'number') {
+        queryClient.setQueryData(['notifications', 'unread-count'], {
+          unread: payload.unreadCount,
+        });
+      }
+
+      // Keep any mounted notifications list fresh too, without refetching
+      // the unread-count query we just updated optimistically above.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'notifications' &&
+          query.queryKey[1] !== 'unread-count',
+      });
+    };
+
+    socket?.on('notification-received', handleNotificationReceived);
+
+    return () => {
+      socket?.off('notification-received', handleNotificationReceived);
+      disconnectSocket();
+    };
+  }, [accessToken, queryClient]);
 
   const role = user?.role;
   const flags = useFeatureFlagsStore((s) => s.flags);
