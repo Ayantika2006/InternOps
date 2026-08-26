@@ -37,13 +37,20 @@ from app.models.ai import (
 )
 from app.core.cache import cache_key, get_or_set
 from app.providers import ai_orchestrator
-from app.providers.base import AIProviderError, ProviderAPIError, ProviderRateLimitError
-from app.providers.registry import get_configured_providers_health, get_provider
+from app.providers.base import(
+  AIProviderError,
+  ProviderAPIError,
+  ProviderRateLimitError,
+)
+from app.providers.registry import (
+  get_configured_providers_health,
+  get_provider,
+)
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 MAX_MESSAGES = 32
-MAX_MESSAGE_CHARS = 4000
+MAX_MESSAGE_CHARS = 2000
 MAX_TOTAL_CHARS = 32000
 
 
@@ -108,8 +115,11 @@ async def chat(
         # an invalid role fails FastAPI's own 422 validation before we
         # get here (equivalent to the JS 400 "Invalid message role").
         final_messages = [
-            {"role": msg.role.value, "content": (msg.content or "")[:2000]}
-            for msg in body.messages[:16]
+            {
+             "role": msg.role.value,
+             "content": (msg.content or "")[:MAX_MESSAGE_CHARS],
+            }
+            for msg in body.messages[:MAX_MESSAGES]
         ]
 
     if not final_messages and body.prompt:
