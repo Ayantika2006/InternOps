@@ -6,6 +6,7 @@ import useFeatureFlagsStore from './store/featureFlags';
 import api from './lib/axios';
 import RoleGuard from './components/RoleGuard';
 import ErrorBoundary from './components/ErrorBoundary';
+import HR from './pages/HR';
 
 // Lazy load page components
 const Login = lazy(() => import('./pages/Login'));
@@ -236,6 +237,17 @@ export default function App() {
             <Route path="ratings" element={<Ratings />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="team" element={<Team />} />
+
+            <Route
+              path="hr"
+              element={
+                <RoleGuard allowedRoles={['ADMIN']}>
+                  <HR />
+                </RoleGuard>
+              }
+            />
+
+            <Route path="profile" element={<Profile />} />
             <Route path="profile" element={<Profile />} />
             <Route path="sessions" element={<Sessions />} />
             <Route path="notifications" element={<Notifications />} />

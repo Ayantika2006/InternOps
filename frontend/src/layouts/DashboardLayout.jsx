@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarCheck,
+  BriefcaseBusiness,
   Star,
   Target,
   Video,
@@ -53,6 +54,12 @@ const nav = [
     label: 'My Team',
     icon: Users,
     allowedRoles: MANAGER_ROLES,
+  },
+  {
+    path: '/hr',
+    label: 'HR',
+    icon: BriefcaseBusiness,
+    allowedRoles: ADMIN_ONLY_ROLES,
   },
   {
     path: '/attendance',
