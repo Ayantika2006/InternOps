@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 
-function getBaseUrl() {
+export function getBaseUrl() {
   const raw = import.meta.env.VITE_API_URL;
   if (!raw) return '/api/v1';
   let url = raw.trim();

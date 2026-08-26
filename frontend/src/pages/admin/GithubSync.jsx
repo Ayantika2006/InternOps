@@ -50,8 +50,9 @@ import {
 } from 'recharts';
 import api from '../../lib/axios';
 import { Card, Btn, Badge, Spinner } from '../../components/ui';
+import { getBaseUrl } from '../../lib/axios';
 
-const WEBHOOK_URL = `${window.location.origin}/api/v1/github/webhook`;
+const WEBHOOK_URL = `${getBaseUrl()}/github/webhook`;
 
 function CopyableField({ label, value, mono }) {
   const [copied, setCopied] = useState(false);
