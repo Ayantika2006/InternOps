@@ -101,6 +101,13 @@ module.exports = async function onboardingRoutes(fastify) {
   fastify.post(
     '/generate',
     {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+          keyGenerator: (req) => req.user?.id || req.ip,
+        },
+      },
       schema: {
         tags: ['Onboarding'],
         description: 'Generate an onboarding checklist draft via AI',
