@@ -1,4 +1,4 @@
--- 034_report_templates.sql
+-- 037_report_templates.sql
 -- Report Template Management
 
 CREATE TABLE IF NOT EXISTS report_templates (
