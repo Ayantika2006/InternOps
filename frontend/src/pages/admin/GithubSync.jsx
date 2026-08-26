@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import api from '../../lib/axios';
 import { Card, Btn, Badge, Spinner } from '../../components/ui';
-import {getBaseUrl} from "../../lib/axios";
+import { getBaseUrl } from '../../lib/axios';
 
 const WEBHOOK_URL = `${getBaseUrl()}/github/webhook`;
 
