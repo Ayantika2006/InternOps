@@ -3,6 +3,7 @@ import { GitPullRequest } from 'lucide-react';
 import api from '../../lib/axios';
 import { Card, Badge, Spinner } from '../ui';
 
+
 export default function GithubSyncWidget() {
   const { data: status, isLoading } = useQuery({
     queryKey: ['github-sync-status'],
